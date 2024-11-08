@@ -1,3 +1,9 @@
+/*
+ * Name : A. Smirnov
+ * UvAnetID : 13272225
+ * Study : BSc Informatica
+ */
+
 #include "queue.h"
 
 #include <stdio.h>

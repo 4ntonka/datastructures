@@ -4,6 +4,21 @@
 !/**/
 !*.*
 
+# Tars
+*.tar
+*.tar.gz
+*.tar.xz
+
+# Zip files
+*.zip
+*.rar
+*.7z
+
+# Documents
+*.doc
+*.docx
+*.pdf
+
 # Ignore macOS DS_Store file
 .DS_Store
 
@@ -60,4 +75,3 @@ Module.symvers
 Mkfile.old
 dkms.conf
 
-# Personal

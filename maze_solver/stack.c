@@ -1,3 +1,9 @@
+/*
+ * Name : A. Smirnov
+ * UvAnetID : 13272225
+ * Study : BSc Informatica
+ */
+
 #include "stack.h"
 
 #include <stdio.h>
@@ -7,9 +13,9 @@ typedef int keytype;
 
 /* Handle to stack */
 struct stack {
-  keytype *data;
-  size_t capacity;
-  size_t used;
+  keytype *data;    // Array to store stack elements
+  size_t capacity;  // Maximum number of elements that can be stored
+  size_t used;      // Current number of elements in the stack
 };
 
 /* Return a pointer to a stack data structure with a maximum capacity of
