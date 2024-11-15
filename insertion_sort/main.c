@@ -3,7 +3,23 @@
  * UvAnetID : 13272225
  * Study : BSc Informatica
  *
+ * This program implements an insertion sort algorithm using a linked list.
+ * It reads integers from standard input and inserts them into a sorted list.
+ * Additional options modify the output:
+ *   -d: Sort in descending order instead of ascending
+ *   -c: Combine adjacent pairs of numbers by adding them
+ *   -o: Remove odd numbers from the final output
+ *   -z: Zip alternating elements from first/second half of list
  *
+ * Please note: this program requires a sorted list to work correctly provided
+ * in list.c and list.h files.
+ *
+ * Example usage:
+ * $ make clean && make && echo "4 2 3 1" | ./mysort
+ * 1
+ * 2
+ * 3
+ * 4
  */
 
 #include <getopt.h>
@@ -34,6 +50,8 @@ struct config {
   int zip_alternating;
 };
 
+/* Parses the command-line options and sets the corresponding flags in the
+ * config structure. */
 int parse_options(struct config *cfg, int argc, char *argv[]) {
   memset(cfg, 0, sizeof(struct config));
   int c;
@@ -59,14 +77,27 @@ int parse_options(struct config *cfg, int argc, char *argv[]) {
   return 0;
 }
 
-// Helper function to insert a number into the sorted list
+/* Inserts a number into a sorted linked list while maintaining the sort order.
+ *
+ * Arguments:
+ *   a) l: Pointer to the input linked list to process. Must be already sorted.
+ *   b) num: The integer value to insert into the list
+ *   c) descending: Flag controlling sort order
+ *     0 = ascending order (smaller values first)
+ *     1 = descending order (larger values first)
+ *
+ * The function:
+ * 1. Creates a new node containing the number
+ * 2. Traverses the list to find the correct insertion position by comparing
+ * values
+ * 3. Inserts the new node either:
+ *   a) At the front if it belongs before all existing nodes
+ *   b) After the last node that maintains the sort order */
 void insert_sorted(struct list *l, int num, int descending) {
   struct node *new_node = list_new_node(num);
   if (!new_node) return;
-
   struct node *current = list_head(l);
   struct node *prev = NULL;
-
   while (current != NULL) {
     int curr_val = list_node_get_value(current);
     if ((!descending && num <= curr_val) || (descending && num >= curr_val)) {
@@ -75,7 +106,6 @@ void insert_sorted(struct list *l, int num, int descending) {
     prev = current;
     current = list_next(current);
   }
-
   if (prev == NULL) {
     list_add_front(l, new_node);
   } else {
@@ -83,23 +113,41 @@ void insert_sorted(struct list *l, int num, int descending) {
   }
 }
 
-// Apply combine option: add adjacent pairs
+/* Combines adjacent pairs of numbers in a linked list by adding them together.
+ *
+ * Arguments:
+ *   l: Pointer to the input linked list to process.
+ *
+ * The function:
+ * 1. Creates a new temporary list to store the combined values
+ * 2. Processes the input list by:
+ *   a) Taking pairs of adjacent nodes (i.e. nodes at positions 0&1, 2&3, etc)
+ *   b) Adding their values together
+ *   c) Inserting the sum into the temporary list in sorted order
+ * 3. If there's an odd number of nodes, the last unpaired node is added as-is
+ * 4. Cleans up the original list by unlinking and freeing all nodes
+ * 5. Moves all nodes from the temporary list back to the original list
+ * 6. Cleans up the temporary list structure
+ *
+ * Example:
+ * Input list:  1 -> 2 -> 3 -> 4 -> 5
+ * Step 2:      3 (1+2) -> 7 (3+4) -> 5
+ * Final list:  3 -> 5 -> 7. */
 void combine_pairs(struct list *l) {
+  if (l == NULL) {
+    return;
+  }
   struct node *current = list_head(l);
   struct list *new_list = list_init();
-
   while (current != NULL && list_next(current) != NULL) {
     int sum =
         list_node_get_value(current) + list_node_get_value(list_next(current));
     insert_sorted(new_list, sum, 0);
     current = list_next(list_next(current));
   }
-
   if (current != NULL) {
     insert_sorted(new_list, list_node_get_value(current), 0);
   }
-
-  // Copy new_list to l
   struct node *n = list_head(l);
   while (n != NULL) {
     struct node *next = list_next(n);
@@ -107,7 +155,6 @@ void combine_pairs(struct list *l) {
     list_free_node(n);
     n = next;
   }
-
   n = list_head(new_list);
   while (n != NULL) {
     struct node *next = list_next(n);
@@ -115,12 +162,29 @@ void combine_pairs(struct list *l) {
     list_add_back(l, n);
     n = next;
   }
-
   list_cleanup(new_list);
 }
 
-// Remove odd numbers from the list
+/* Removes all odd numbers from a linked list, modifying it in place.
+ *
+ * Arguments:
+ *   l: Pointer to the input linked list to process.
+ *
+ * The function:
+ * 1. Iterates through each node in the list
+ * 2. For each node:
+ *   a) Gets its value and checks if it's odd (not divisible by 2)
+ *   b) If odd: Unlinks the node from the list and frees its memory
+ *   c) If even: Leaves the node in place and continues
+ * 3. Updates list structure (size, head/tail pointers) via unlink operations
+ *
+ * Example:
+ * Input list:  1 -> 2 -> 3 -> 4 -> 5
+ * Output list: 2 -> 4 */
 void remove_odd_numbers(struct list *l) {
+  if (l == NULL) {
+    return;
+  }
   struct node *current = list_head(l);
   while (current != NULL) {
     struct node *next = list_next(current);
@@ -132,21 +196,40 @@ void remove_odd_numbers(struct list *l) {
   }
 }
 
-// Zip alternating elements from first and second half
+/* Rearranges elements in a linked list by alternating between elements from
+ * the first and second half of the list.
+ *
+ * Arguments:
+ *   l: Pointer to the input linked list to process.
+ *
+ * The function:
+ * 1. Calculates length and finds midpoint of list
+ * 2. Splits list into two halves at midpoint using list_cut_after()
+ * 3. Creates temporary result list to store reordered elements
+ * 4. Alternately takes elements from first and second half:
+ *   a) Takes first element from first half, adds to result
+ *   b) Takes first element from second half, adds to result
+ *   c) Repeats until both halves are empty
+ * 5. Moves all elements from result back to original list
+ * 6. Cleans up temporary lists
+ *
+ * Example:
+ * Input list:  1 -> 2 -> 3 -> 4 -> 5 -> 6
+ * After split: (1 -> 2 -> 3) and (4 -> 5 -> 6)
+ * Output list: 1 -> 4 -> 2 -> 5 -> 3 -> 6 */
 void zip_alternating(struct list *l) {
+  if (l == NULL) {
+    return;
+  }
   size_t len = list_length(l);
   if (len <= 1) return;
-
   size_t mid = (len + 1) / 2;
   struct node *mid_node = list_get_ith(l, mid - 1);
   struct list *second_half = list_cut_after(l, mid_node);
-
   if (!second_half) return;
-
   struct node *first = list_head(l);
   struct node *second = list_head(second_half);
   struct list *result = list_init();
-
   while (first != NULL || second != NULL) {
     if (first != NULL) {
       struct node *next_first = list_next(first);
@@ -161,8 +244,6 @@ void zip_alternating(struct list *l) {
       second = next_second;
     }
   }
-
-  // Copy result back to l
   first = list_head(result);
   while (first != NULL) {
     struct node *next = list_next(first);
@@ -170,22 +251,29 @@ void zip_alternating(struct list *l) {
     list_add_back(l, first);
     first = next;
   }
-
   list_cleanup(second_half);
   list_cleanup(result);
 }
 
+/* Main function that processes command line arguments and performs operations
+ * on a linked list.
+ *
+ * Arguments:
+ *   a) argc: Number of command line arguments
+ *   b) argv: Array of command line argument strings
+ *
+ * Returns:
+ *   0 on successful execution
+ *   1 if initialization fails or invalid options are provided. */
 int main(int argc, char *argv[]) {
   struct config cfg;
   if (parse_options(&cfg, argc, argv) != 0) {
     return 1;
   }
-
   struct list *l = list_init();
   if (!l) {
     return 1;
   }
-
   char *token;
   while (fgets(buf, BUF_SIZE, stdin)) {
     token = strtok(buf, " \t\n");
@@ -198,17 +286,14 @@ int main(int argc, char *argv[]) {
       token = strtok(NULL, " \t\n");
     }
   }
-
   if (cfg.combine) combine_pairs(l);
   if (cfg.remove_odd) remove_odd_numbers(l);
   if (cfg.zip_alternating) zip_alternating(l);
-
   struct node *current = list_head(l);
   while (current != NULL) {
     printf("%d\n", list_node_get_value(current));
     current = list_next(current);
   }
-
   list_cleanup(l);
   return 0;
 }
