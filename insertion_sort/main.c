@@ -22,6 +22,8 @@
  * 4
  */
 
+// TODO sideeffcts
+
 #include <getopt.h>
 #include <math.h>
 #include <stdio.h>
@@ -84,16 +86,12 @@ int parse_options(struct config *cfg, int argc, char *argv[]) {
  *   b) num: The integer value to insert into the list
  *   c) descending: Flag controlling sort order, 0 = ascending, 1 = descending.
  *
- * The function:
- *   1. Creates a new node containing the number
- *   2. Traverses the list to find the correct insertion position by comparing
- *      values
- *   3. Inserts the new node either:
- *      a) At the front if it belongs before all existing nodes based on sort
- *         order
- *      b) After the appropriate node to maintain ascending/descending order
- *   4. Handles error cases like failed node creation gracefully
- *   5. Maintains the sorted property of the list after insertion */
+ * Expected behavior:
+ *   a) If the list is empty, the new node is added as the only node in the
+ * list. b) If the new node's value is less than or equal to the head node's
+ * value (when descending is 0) or greater than or equal to the head node's
+ * value (when descending is 1), the new node is added at the front of the list.
+ */
 void insert_sorted(struct list *l, int num, int descending) {
   struct node *new_node = list_new_node(num);
   if (!new_node) return;
@@ -119,22 +117,11 @@ void insert_sorted(struct list *l, int num, int descending) {
  * Arguments:
  *   l: Pointer to the input linked list to process.
  *
- * The function:
- *   1. Creates a new temporary list to store the combined values
- *   2. Processes the input list by:
- *      a) Taking pairs of adjacent nodes (i.e. nodes at positions 0&1, 2&3,
- *         etc)
- *      b) Adding their values together c) Inserting the sum into the temporary
- *         list
- *   3. If there's an odd number of nodes, the last unpaired node is added as-is
- *   4. Cleans up the original list by unlinking and freeing all nodes
- *   5. Moves all nodes from the temporary list back to the original list
- *   6. Cleans up the temporary list structure
- *
- * Example:
- * Input list:  1 -> 2 -> 3 -> 4 -> 5
- * Step 2:      3 (1+2) -> 7 (3+4) -> 5
- * Final list:  3 -> 5 -> 7. */
+ * Expected behavior:
+ *   a) If the list is empty, the function does nothing.
+ *   b) If the list has an odd number of nodes, the last node is added as-is to
+ *      the new list.
+ */
 void combine_pairs(struct list *l) {
   if (l == NULL || list_head(l) == NULL) {
     return;
@@ -154,7 +141,10 @@ void combine_pairs(struct list *l) {
       sum = list_node_get_value(current);
       current = NULL;
     }
-    insert_sorted(new_list, sum, 0);
+    struct node *new_node = list_new_node(sum);
+    if (new_node != NULL) {
+      list_add_back(new_list, new_node);
+    }
   }
   struct node *old_head = list_head(l);
   while (old_head != NULL) {
@@ -178,17 +168,12 @@ void combine_pairs(struct list *l) {
  * Arguments:
  *   l: Pointer to the input linked list to process.
  *
- * The function:
- *   1. Iterates through each node in the list
- *   2. For each node:
- *      a) Gets its value and checks if it's odd (not divisible by 2)
- *      b) If odd: Unlinks the node from the list and frees its memory
- *      c) If even: Leaves the node in place and continues
- *   3. Updates list structure (size, head/tail pointers) via unlink operations
- *
- * Example:
- * Input list:  1 -> 2 -> 3 -> 4 -> 5
- * Output list: 2 -> 4 */
+ * Expected behavior:
+ *   a) If the list is empty, the function does nothing.
+ *   b) If the list has no odd numbers, the list remains unchanged.
+ *   c) If the list has odd numbers, they are removed and the remaining nodes
+ * are reconnected in a continuous sequence.
+ */
 void remove_odd_numbers(struct list *l) {
   if (l == NULL) {
     return;
@@ -210,21 +195,10 @@ void remove_odd_numbers(struct list *l) {
  * Arguments:
  *   l: Pointer to the input linked list to process.
  *
- * The function:
- *   1. Calculates length and finds midpoint of list
- *   2. Splits list into two halves at midpoint using list_cut_after()
- *   3. Creates temporary result list to store reordered elements
- *   4. Alternately takes elements from first and second half:
- *      a) Takes first element from first half, adds to result
- *      b) Takes first element from second half, adds to result
- *      c) Repeats until both halves are empty
- *   5. Moves all elements from result back to original list
- *   6. Cleans up temporary lists
- *
- * Example:
- * Input list:  1 -> 2 -> 3 -> 4 -> 5 -> 6
- * After split: (1 -> 2 -> 3) and (4 -> 5 -> 6)
- * Output list: 1 -> 4 -> 2 -> 5 -> 3 -> 6 */
+ * Expected behavior:
+ *   a) If the list is empty, the function does nothing.
+ *   b) If the list has no odd numbers, the list remains unchanged.
+ */
 void zip_alternating(struct list *l) {
   if (l == NULL) {
     return;
@@ -270,9 +244,12 @@ void zip_alternating(struct list *l) {
  *   a) argc: Number of command line arguments
  *   b) argv: Array of command line argument strings
  *
- * Returns:
- *   0 on successful execution
- *   1 if initialization fails or invalid options are provided. */
+ * Expected behavior:
+ *   a) If the command line arguments are invalid, the program prints an error
+ *      message and exits with status 1.
+ *   b) The program initializes a linked list, reads integers from standard
+ *      input, and inserts them into the list in sorted order.
+ */
 int main(int argc, char *argv[]) {
   struct config cfg;
   if (parse_options(&cfg, argc, argv) != 0) {
