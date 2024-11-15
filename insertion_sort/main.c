@@ -82,35 +82,36 @@ int parse_options(struct config *cfg, int argc, char *argv[]) {
  * Arguments:
  *   a) l: Pointer to the input linked list to process. Must be already sorted.
  *   b) num: The integer value to insert into the list
- *   c) descending: Flag controlling sort order
- *     0 = ascending order (smaller values first)
- *     1 = descending order (larger values first)
+ *   c) descending: Flag controlling sort order, 0 = ascending, 1 = descending.
  *
  * The function:
- * 1. Creates a new node containing the number
- * 2. Traverses the list to find the correct insertion position by comparing
- * values
- * 3. Inserts the new node either:
- *   a) At the front if it belongs before all existing nodes
- *   b) After the last node that maintains the sort order */
+ *   1. Creates a new node containing the number
+ *   2. Traverses the list to find the correct insertion position by comparing
+ *      values
+ *   3. Inserts the new node either:
+ *      a) At the front if it belongs before all existing nodes based on sort
+ *         order
+ *      b) After the appropriate node to maintain ascending/descending order
+ *   4. Handles error cases like failed node creation gracefully
+ *   5. Maintains the sorted property of the list after insertion */
 void insert_sorted(struct list *l, int num, int descending) {
   struct node *new_node = list_new_node(num);
   if (!new_node) return;
+  if (list_head(l) == NULL ||
+      (!descending && num <= list_node_get_value(list_head(l))) ||
+      (descending && num >= list_node_get_value(list_head(l)))) {
+    list_add_front(l, new_node);
+    return;
+  }
   struct node *current = list_head(l);
-  struct node *prev = NULL;
-  while (current != NULL) {
-    int curr_val = list_node_get_value(current);
-    if ((!descending && num <= curr_val) || (descending && num >= curr_val)) {
+  while (current != NULL && list_next(current) != NULL) {
+    int next_val = list_node_get_value(list_next(current));
+    if ((!descending && num <= next_val) || (descending && num >= next_val)) {
       break;
     }
-    prev = current;
     current = list_next(current);
   }
-  if (prev == NULL) {
-    list_add_front(l, new_node);
-  } else {
-    list_insert_after(l, new_node, prev);
-  }
+  list_insert_after(l, new_node, current);
 }
 
 /* Combines adjacent pairs of numbers in a linked list by adding them together.
@@ -119,48 +120,55 @@ void insert_sorted(struct list *l, int num, int descending) {
  *   l: Pointer to the input linked list to process.
  *
  * The function:
- * 1. Creates a new temporary list to store the combined values
- * 2. Processes the input list by:
- *   a) Taking pairs of adjacent nodes (i.e. nodes at positions 0&1, 2&3, etc)
- *   b) Adding their values together
- *   c) Inserting the sum into the temporary list in sorted order
- * 3. If there's an odd number of nodes, the last unpaired node is added as-is
- * 4. Cleans up the original list by unlinking and freeing all nodes
- * 5. Moves all nodes from the temporary list back to the original list
- * 6. Cleans up the temporary list structure
+ *   1. Creates a new temporary list to store the combined values
+ *   2. Processes the input list by:
+ *      a) Taking pairs of adjacent nodes (i.e. nodes at positions 0&1, 2&3,
+ *         etc)
+ *      b) Adding their values together c) Inserting the sum into the temporary
+ *         list
+ *   3. If there's an odd number of nodes, the last unpaired node is added as-is
+ *   4. Cleans up the original list by unlinking and freeing all nodes
+ *   5. Moves all nodes from the temporary list back to the original list
+ *   6. Cleans up the temporary list structure
  *
  * Example:
  * Input list:  1 -> 2 -> 3 -> 4 -> 5
  * Step 2:      3 (1+2) -> 7 (3+4) -> 5
  * Final list:  3 -> 5 -> 7. */
 void combine_pairs(struct list *l) {
-  if (l == NULL) {
+  if (l == NULL || list_head(l) == NULL) {
+    return;
+  }
+  struct list *new_list = list_init();
+  if (new_list == NULL) {
     return;
   }
   struct node *current = list_head(l);
-  struct list *new_list = list_init();
-  while (current != NULL && list_next(current) != NULL) {
-    int sum =
-        list_node_get_value(current) + list_node_get_value(list_next(current));
+  while (current != NULL) {
+    int sum;
+    if (list_next(current) != NULL) {
+      sum = list_node_get_value(current) +
+            list_node_get_value(list_next(current));
+      current = list_next(list_next(current));
+    } else {
+      sum = list_node_get_value(current);
+      current = NULL;
+    }
     insert_sorted(new_list, sum, 0);
-    current = list_next(list_next(current));
   }
-  if (current != NULL) {
-    insert_sorted(new_list, list_node_get_value(current), 0);
+  struct node *old_head = list_head(l);
+  while (old_head != NULL) {
+    struct node *next = list_next(old_head);
+    list_unlink_node(l, old_head);
+    list_free_node(old_head);
+    old_head = next;
   }
-  struct node *n = list_head(l);
-  while (n != NULL) {
-    struct node *next = list_next(n);
-    list_unlink_node(l, n);
-    list_free_node(n);
-    n = next;
-  }
-  n = list_head(new_list);
-  while (n != NULL) {
-    struct node *next = list_next(n);
-    list_unlink_node(new_list, n);
-    list_add_back(l, n);
-    n = next;
+  struct node *new_head = list_head(new_list);
+  while (new_head != NULL) {
+    struct node *next = list_next(new_head);
+    list_unlink_node(new_list, new_head);
+    list_add_back(l, new_head);
+    new_head = next;
   }
   list_cleanup(new_list);
 }
@@ -171,12 +179,12 @@ void combine_pairs(struct list *l) {
  *   l: Pointer to the input linked list to process.
  *
  * The function:
- * 1. Iterates through each node in the list
- * 2. For each node:
- *   a) Gets its value and checks if it's odd (not divisible by 2)
- *   b) If odd: Unlinks the node from the list and frees its memory
- *   c) If even: Leaves the node in place and continues
- * 3. Updates list structure (size, head/tail pointers) via unlink operations
+ *   1. Iterates through each node in the list
+ *   2. For each node:
+ *      a) Gets its value and checks if it's odd (not divisible by 2)
+ *      b) If odd: Unlinks the node from the list and frees its memory
+ *      c) If even: Leaves the node in place and continues
+ *   3. Updates list structure (size, head/tail pointers) via unlink operations
  *
  * Example:
  * Input list:  1 -> 2 -> 3 -> 4 -> 5
@@ -203,15 +211,15 @@ void remove_odd_numbers(struct list *l) {
  *   l: Pointer to the input linked list to process.
  *
  * The function:
- * 1. Calculates length and finds midpoint of list
- * 2. Splits list into two halves at midpoint using list_cut_after()
- * 3. Creates temporary result list to store reordered elements
- * 4. Alternately takes elements from first and second half:
- *   a) Takes first element from first half, adds to result
- *   b) Takes first element from second half, adds to result
- *   c) Repeats until both halves are empty
- * 5. Moves all elements from result back to original list
- * 6. Cleans up temporary lists
+ *   1. Calculates length and finds midpoint of list
+ *   2. Splits list into two halves at midpoint using list_cut_after()
+ *   3. Creates temporary result list to store reordered elements
+ *   4. Alternately takes elements from first and second half:
+ *      a) Takes first element from first half, adds to result
+ *      b) Takes first element from second half, adds to result
+ *      c) Repeats until both halves are empty
+ *   5. Moves all elements from result back to original list
+ *   6. Cleans up temporary lists
  *
  * Example:
  * Input list:  1 -> 2 -> 3 -> 4 -> 5 -> 6

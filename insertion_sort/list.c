@@ -76,11 +76,17 @@ struct node *list_tail(const struct list *l) {
 }
 
 struct node *list_prev(const struct list *l, const struct node *n) {
+  if (l == NULL || n == NULL || l->head == NULL) {
+    return NULL;
+  }
+  if (l->head == n) {
+    return NULL;
+  }
   struct node *current = l->head;
-  while (current != NULL && current->next != n) {
+  while (current->next != NULL && current->next != n) {
     current = current->next;
   }
-  return current;
+  return current->next == n ? current : NULL;
 }
 
 int list_add_back(struct list *l, struct node *n) {
