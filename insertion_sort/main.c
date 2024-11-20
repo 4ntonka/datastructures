@@ -22,8 +22,6 @@
  * 4
  */
 
-// TODO sideeffcts
-
 #include <getopt.h>
 #include <math.h>
 #include <stdio.h>
