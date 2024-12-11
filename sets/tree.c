@@ -1,6 +1,14 @@
+/*
+ * Name : A. Smirnov
+ * UvAnetID : 13272225
+ * Study : BSc Informatica
+ *
+ * This is the low-level implementation of a binary search tree data structure
+ * and its operations and is used by set.c.
+ */
+
 #include "tree.h"
 
-#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -15,7 +23,8 @@ struct node {
   int data;
   struct node *lhs;
   struct node *rhs;
-  int height;
+
+  /* ... SOME CODE MISSING HERE ... */
 };
 typedef struct node node;
 
@@ -26,7 +35,7 @@ static int global_node_counter = 0;
  * the given parameters. Return a pointer to the new node or NULL on
  * failure. */
 static node *make_node(int data) {
-  node *new_node = malloc(sizeof(node));
+  node *new_node = (node *)malloc(sizeof(node));
   if (!new_node) {
     return NULL;
   }
@@ -38,15 +47,20 @@ static node *make_node(int data) {
 
 static int print_tree_dot_r(node *root, FILE *dotf) {
   int left_id, right_id, my_id = global_node_counter++;
+
   if (root == NULL) {
     fprintf(dotf, "    %d [shape=point];\n", my_id);
     return my_id;
   }
+
   fprintf(dotf, "    %d [color=%s label=\"%d\"]\n", my_id, "black", root->data);
+
   left_id = print_tree_dot_r(root->lhs, dotf);
   fprintf(dotf, "    %d -> %d [label=\"l\"]\n", my_id, left_id);
+
   right_id = print_tree_dot_r(root->rhs, dotf);
   fprintf(dotf, "    %d -> %d [label=\"r\"]\n", my_id, right_id);
+
   return my_id;
 }
 
@@ -67,166 +81,96 @@ void tree_dot(const struct tree *tree, const char *filename) {
 }
 
 int tree_check(const struct tree *tree) {
-  if (!tree) {
-    return -1;
-  }
-  if (!tree->root) {
-    return 0;
-  }
-  // Check BST property recursively
-  node *current = tree->root;
-  if (current->lhs && current->lhs->data >= current->data) {
-    return -1;
-  }
-  if (current->rhs && current->rhs->data <= current->data) {
-    return -1;
-  }
-  // Check subtrees recursively
-  if (current->lhs &&
-      tree_check_node(current->lhs, INT_MIN, current->data) != 0) {
-    return -1;
-  }
-  if (current->rhs &&
-      tree_check_node(current->rhs, current->data, INT_MAX) != 0) {
-    return -1;
-  }
-
+  /* ... OPTIONALLY IMPLEMENT TREE CHECKING HERE ... */
   return 0;
 }
 
 struct tree *tree_init(int turbo) {
-  struct tree *t = malloc(sizeof(struct tree));
-  if (!t) {
+  struct tree *new_tree = (struct tree *)malloc(sizeof(struct tree));
+  if (!new_tree) {
     return NULL;
   }
-  t->root = NULL;
-  return t;
+  new_tree->root = NULL;
+  return new_tree;
 }
 
-int tree_insert(struct tree *tree, int data) {
-  node *new_node = make_node(data);
-  if (!new_node) {
-    return 0;
-  }
-  if (!tree->root) {
-    tree->root = new_node;
-    return 1;
-  }
-  node *current = tree->root;
-  while (1) {
-    if (data < current->data) {
-      if (!current->lhs) {
-        current->lhs = new_node;
-        return 1;
-      }
-      current = current->lhs;
-    } else if (data > current->data) {
-      if (!current->rhs) {
-        current->rhs = new_node;
-        return 1;
-      }
-      current = current->rhs;
+int tree_insert(struct tree *tree, int num) {
+  node **current = &(tree->root);
+  while (*current) {
+    if (num < (*current)->data) {
+      current = &((*current)->lhs);
+    } else if (num > (*current)->data) {
+      current = &((*current)->rhs);
     } else {
-      // Duplicate value, free the new node and return failure
-      free(new_node);
-      return 0;
+      return 1;  // Already exists
     }
   }
+  *current = make_node(num);
+  return *current ? 0 : -1;  // Success or failure
 }
 
-int tree_find(struct tree *tree, int data) {
-  if (!tree || !tree->root) {
-    return 0;
-  }
+int tree_find(struct tree *tree, int num) {
   node *current = tree->root;
   while (current) {
-    if (data < current->data) {
+    if (num < current->data) {
       current = current->lhs;
-    } else if (data > current->data) {
+    } else if (num > current->data) {
       current = current->rhs;
     } else {
-      return 1;  // Found the value
+      return 1;  // Found
     }
   }
-  return 0;  // Value not found
+  return 0;  // Not found
 }
 
-static node *find_min(node *root) {
-  while (root->lhs) {
-    root = root->lhs;
-  }
-  return root;
-}
-
-static node *remove_node(node *root, int data, int *success) {
-  if (!root) {
-    *success = 0;
-    return NULL;
-  }
-
-  if (data < root->data) {
-    root->lhs = remove_node(root->lhs, data, success);
-  } else if (data > root->data) {
-    root->rhs = remove_node(root->rhs, data, success);
-  } else {
-    *success = 1;
-    if (!root->lhs) {
-      node *temp = root->rhs;
-      free(root);
-      return temp;
-    } else if (!root->rhs) {
-      node *temp = root->lhs;
-      free(root);
-      return temp;
+int tree_remove(struct tree *tree, int num) {
+  node **current = &(tree->root);
+  while (*current) {
+    if (num < (*current)->data) {
+      current = &((*current)->lhs);
+    } else if (num > (*current)->data) {
+      current = &((*current)->rhs);
+    } else {
+      // Node found, handle removal
+      node *to_remove = *current;
+      if (!to_remove->lhs) {
+        *current = to_remove->rhs;
+      } else if (!to_remove->rhs) {
+        *current = to_remove->lhs;
+      } else {
+        // Node with two children: find the inorder successor
+        node **successor = &(to_remove->rhs);
+        while ((*successor)->lhs) {
+          successor = &((*successor)->lhs);
+        }
+        to_remove->data = (*successor)->data;
+        to_remove = *successor;
+        *successor = (*successor)->rhs;
+      }
+      free(to_remove);
+      return 0;  // Success
     }
-
-    node *temp = find_min(root->rhs);
-    root->data = temp->data;
-    root->rhs = remove_node(root->rhs, temp->data, success);
   }
-  return root;
+  return 1;  // Not found
 }
 
-int tree_remove(struct tree *tree, int data) {
-  if (!tree) {
-    return 0;
-  }
-  int success = 0;
-  tree->root = remove_node(tree->root, data, &success);
-  return success;
+void inorder_print(node *n) {
+  if (!n) return;
+  inorder_print(n->lhs);
+  printf("%d\n", n->data);
+  inorder_print(n->rhs);
 }
 
-static void print_inorder(node *root) {
-  if (!root) {
-    return;
-  }
-  print_inorder(root->lhs);
-  printf("%d ", root->data);
-  print_inorder(root->rhs);
-}
+void tree_print(const struct tree *tree) { inorder_print(tree->root); }
 
-void tree_print(const struct tree *tree) {
-  if (!tree || !tree->root) {
-    printf("Empty tree\n");
-    return;
-  }
-  print_inorder(tree->root);
-  printf("\n");
-}
-
-static void cleanup_node(node *root) {
-  if (!root) {
-    return;
-  }
-  cleanup_node(root->lhs);
-  cleanup_node(root->rhs);
-  free(root);
+void free_nodes(node *n) {
+  if (!n) return;
+  free_nodes(n->lhs);
+  free_nodes(n->rhs);
+  free(n);
 }
 
 void tree_cleanup(struct tree *tree) {
-  if (!tree) {
-    return;
-  }
-  cleanup_node(tree->root);
+  free_nodes(tree->root);
   free(tree);
 }
